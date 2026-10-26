@@ -1,0 +1,63 @@
+{
+  "name": "@ams/agent-music",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "AMS Music Agent: independent Host skills/tools for safe music processing, plus local speech-to-text.",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/",
+    "skills/",
+    "asr.py",
+    "README.md",
+    "CHANGELOG.md",
+    "INSTALL.md"
+  ],
+  "engines": {
+    "dsh": "0.2.1-rc.2"
+  },
+  "ams": {
+    "pluginId": "ams.agent.music",
+    "kind": "host",
+    "pages": [],
+    "tools": [
+      "ams_mode_enter",
+      "ams_status",
+      "ams_inventory",
+      "ams_dataset_inspect",
+      "ams_dataset_audit",
+      "ams_dataset_clean",
+      "ams_tts_text_clean",
+      "ams_dataset_prepare_rvc",
+      "ams_dataset_prepare_tts",
+      "ams_voice_delete_to_trash",
+      "ams_job_submit",
+      "ams_job_status",
+      "ams_job_list",
+      "ams_job_cancel",
+      "ams_job_wait",
+      "ams_tts_synthesize",
+      "ams_transcribe",
+      "ams_evaluate_audio",
+      "ams_docs_lookup",
+      "ams_release_check"
+    ],
+    "permissions": [
+      "network",
+      "files.read",
+      "files.write"
+    ],
+    "skill": "ams-music-processing",
+    "quality": "dataset audit, tts text clean, rvc filter, audio evaluation, release preflight"
+  },
+  "scripts": {
+    "build": "node build.mjs"
+  }
+}

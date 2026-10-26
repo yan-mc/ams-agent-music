@@ -1,0 +1,4 @@
+# Insert the independent AMS Agent music plugin (Host tools + Skill provider).
+- insert:
+    - id: ams-agent-music
+      name: '@ams/agent-music'
