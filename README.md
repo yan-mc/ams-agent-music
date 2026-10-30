@@ -1,6 +1,6 @@
 # @ams/agent-music
 
-Independent AMS Music Agent Host plugin + skill bundle.
+嘉音Studio Music Agent: independent Host plugin (20 tools + Skill) + Kernel rebrand client + local ASR.
 
 This package is intentionally not part of @ams/music-bundle.
 
@@ -13,7 +13,7 @@ This package is intentionally not part of @ams/music-bundle.
 
 ## Install
 
-Use the sibling bundle @ams/agent-music-bundle.
+Use the sibling bundle @ams/agent-music-bundle (also inserts @ams/agent-music-ui for the 嘉音Studio Kernel rebrand).
 
 1. Copy @ams/agent-music and @ams/agent-music-bundle into the profile node_modules.
 2. Add both to profile package.json dependencies.

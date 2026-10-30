@@ -4,15 +4,17 @@
 
 1. Copy the plugin package to:
    F:/AMS-Studio/data/kernel/dsh/profiles/desktop/node_modules/@ams/agent-music
-2. Copy the bundle package to:
+2. Copy the client package so:
+   F:/AMS-Studio/data/kernel/dsh/profiles/desktop/node_modules/@ams/agent-music-ui
+   and the bundle package to:
    F:/AMS-Studio/data/kernel/dsh/profiles/desktop/node_modules/@ams/agent-music-bundle
 3. Add to profile package.json dependencies:
-   @ams/agent-music and @ams/agent-music-bundle
+   @ams/agent-music, @ams/agent-music-ui and @ams/agent-music-bundle
 4. Add to dsh.profile.bundles:
    @ams/agent-music-bundle
 5. Restart AMS Studio/Kernel.
 
-The bundle inserts the plugin; the plugin registers the skill provider and tools.
+The bundle inserts the plugin (and the @ams/agent-music-ui client for the 嘉音Studio Kernel rebrand); the plugin registers the skill provider and tools.
 
 ## Verify
 

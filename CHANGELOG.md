@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1
+
+- fix: audit log path is resolved from AMS_HOME / Kernel cwd / DSH_HOME instead of hardcoding `F:/AMS-Studio/data`.
+- fix: ASR dependency paths auto-detect the real v1.0.x runtime layout (`runtime.tts-train-0.1.0` nested dir), with env overrides and clear missing-dependency errors.
+- fix: `engines.dsh` bumped to `0.2.1-rc.3` to match the shipped Kernel.
+- new: `@ams/agent-music-ui` client plugin — rebrands the Kernel web UI at runtime (title, whale marks, DeepSeek/探索未至之境 text, favicon) without modifying Kernel sources.
+- new: bundle patch now inserts both the Host plugin and the rebrand client.
+- new: `FEATURES.md` full capability guide.
+
 ## 0.2.0
 
 - 20 Host tools.

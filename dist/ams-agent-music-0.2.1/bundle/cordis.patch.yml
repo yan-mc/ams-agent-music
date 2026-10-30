@@ -1,0 +1,6 @@
+# 嘉音Studio Agent 插件 bundle：同时插入 Host 插件（20 tools + Skill）与 Client 插件（内核换标）。
+- insert:
+    - id: ams-agent-music
+      name: '@ams/agent-music'
+    - id: ams-agent-music-ui
+      name: '@ams/agent-music-ui'

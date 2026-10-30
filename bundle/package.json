@@ -1,8 +1,8 @@
 {
   "name": "@ams/agent-music-bundle",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
-  "description": "Profile bundle for the independent AMS music Agent plugin.",
+  "description": "Profile bundle for the independent 嘉音Studio music Agent plugin (Host tools + Skill + Kernel rebrand client).",
   "license": "MIT",
   "files": [
     "cordis.patch.yml",
@@ -19,7 +19,8 @@
   "ams": {
     "kind": "bundle",
     "plugins": [
-      "@ams/agent-music"
+      "@ams/agent-music",
+      "@ams/agent-music-ui"
     ]
   }
 }

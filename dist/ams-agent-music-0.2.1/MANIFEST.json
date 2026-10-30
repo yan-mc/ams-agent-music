@@ -1,0 +1,32 @@
+{
+  "name": "@ams/agent-music",
+  "version": "0.2.1",
+  "skill": "ams-music-processing",
+  "tools": [
+    "ams_mode_enter",
+    "ams_status",
+    "ams_inventory",
+    "ams_dataset_inspect",
+    "ams_dataset_audit",
+    "ams_dataset_clean",
+    "ams_tts_text_clean",
+    "ams_dataset_prepare_rvc",
+    "ams_dataset_prepare_tts",
+    "ams_voice_delete_to_trash",
+    "ams_job_submit",
+    "ams_job_status",
+    "ams_job_list",
+    "ams_job_cancel",
+    "ams_job_wait",
+    "ams_tts_synthesize",
+    "ams_transcribe",
+    "ams_evaluate_audio",
+    "ams_docs_lookup",
+    "ams_release_check"
+  ],
+  "asr": "local Vosk (auto-detected deps)",
+  "bundle": "@ams/agent-music-bundle",
+  "client": "@ams/agent-music-ui",
+  "rebrand": "Kernel title/logo/text -> 嘉音Studio",
+  "built_at": "2026-10-30T16:56:24.038213+00:00"
+}

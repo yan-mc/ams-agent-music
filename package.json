@@ -1,9 +1,9 @@
 {
   "name": "@ams/agent-music",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
-  "description": "AMS Music Agent: independent Host skills/tools for safe music processing, plus local speech-to-text.",
+  "description": "嘉音Studio Music Agent: independent Host skills/tools for safe music processing, plus local speech-to-text and the Kernel rebrand client bundle.",
   "license": "MIT",
   "main": "lib/index.js",
   "exports": {
@@ -18,7 +18,8 @@
     "asr.py",
     "README.md",
     "CHANGELOG.md",
-    "INSTALL.md"
+    "INSTALL.md",
+    "FEATURES.md"
   ],
   "engines": {
     "dsh": "0.2.1-rc.2"
