@@ -1,6 +1,6 @@
 ---
 name: ams-music-processing
-description: Operate AMS Studio music processing via the independent @ams/agent-music tools. Use for audio datasets, RVC/TTS training, separation, conversion, synthesis, evaluation, mixing, transcription, and release checks.
+description: Operate AMS Studio music processing via the independent @ams/agent-music tools. Use for audio datasets, RVC/GPT-SoVITS training, separation, conversion, synthesis, evaluation, mixing, transcription, and release checks.
 ---
 
 # AMS Music Processing Mode
@@ -23,6 +23,7 @@ Use this skill for AMS Studio work. This is an independent Agent mode: it does n
 
 - Architecture and data layout: ams_docs_lookup(name="architecture")
 - Tool schemas and job contracts: ams_docs_lookup(name="tools")
+- GPT-SoVITS TTS pipeline: ams_docs_lookup(name="tts_gsv")
 - Dataset formats and preparation: ams_docs_lookup(name="datasets")
 - Safety: ams_docs_lookup(name="safety")
 - Known failures and lessons: ams_docs_lookup(name="lessons")
@@ -36,17 +37,23 @@ Use this skill for AMS Studio work. This is an independent Agent mode: it does n
 4. ams_dataset_inspect
 5. ams_dataset_audit(kind=rvc|tts)
 6. Review report.proposed_actions. This is a dry-run; no files changed.
-7. For TTS text: ams_tts_text_clean; inspect changed rows; confirm=true only after approval.
-8. For dataset removal: call ams_dataset_clean with exact file names and confirm=true only after approval.
-9. Prepare or train only after approval.
+7. For dataset removal: call ams_dataset_clean with exact file names and confirm=true only after approval.
+8. Prepare or train only after approval.
 
 ## RVC
 
 Inspect -> ams_dataset_audit(kind="rvc") -> review short/silence/clipping/duplicates -> optional ams_dataset_clean -> ams_dataset_prepare_rvc or ams_job_submit(type="train.rvc", confirm=true) -> ams_job_wait.
 
-## TTS
+## TTS（GPT-SoVITS / V5turbo）
 
-Inspect -> ams_dataset_audit(kind="tts") -> ams_tts_text_clean dry-run -> write metadata.cleaned.csv only after approval -> train only after approval -> ams_tts_synthesize -> ams_evaluate_audio.
+1. `ams_tts_gsv_status` 确认 runtime 就绪、音色数量、默认引擎。
+2. `ams_tts_gsv_voices` 选择 `voice_id`。
+3. `ams_tts_gsv_synthesize(text, voice_id, speed?, seed?, confirm=true)` 提交 `tts.synthesize.gsv`。
+4. `ams_job_wait` 等完成，产物音频在 `data/artifacts`。
+5. `ams_evaluate_audio(input_path=..., transcribe=true, expected_text="...")` 初评；同音字会被 ASR 判错，最终以人耳 A/B 为准。
+6. 新音色：`ams_tts_gsv_dataset_prepare` 导入数据集 → `ams_tts_gsv_train(dataset_dir, voice_id, confirm=true)` → `ams_job_wait` → `ams_tts_gsv_voices` 确认。
+
+默认引擎 `v5turbo`（48kHz）；需要全量微调/稳定回退时用 `v2ProPlus`。详细说明见 `ams_docs_lookup(name="tts_gsv")`。旧 Piper 管线已移除，不要再使用旧模型或旧训练路径。
 
 TTS training quality is frozen by project decision; do not retune without explicit request.
 
@@ -56,7 +63,7 @@ ams_evaluate_audio(input_path=..., transcribe=true, expected_text="...") returns
 
 ## Release
 
-Read ams_docs_lookup(name="release"). Use ams_release_check for feed/manifest/setup hash/SHA256SUMS. No upload without explicit approval. Only the manbo RVC voicepack belongs in H2/H3 GitHub release; TTS voice assets stay out.
+Read ams_docs_lookup(name="release"). Use ams_release_check for feed/manifest/setup hash/SHA256SUMS. No upload without explicit approval.
 
 ## Completion
 

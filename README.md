@@ -40,10 +40,10 @@ Override with AMS_ASR_PYTHON, AMS_ASR_LIB, AMS_ASR_MODEL, AMS_FFMPEG.
 ## Tools
 
 ams_mode_enter, ams_status, ams_inventory, ams_dataset_inspect,
-ams_dataset_audit, ams_dataset_clean, ams_tts_text_clean,
-ams_dataset_prepare_rvc, ams_dataset_prepare_tts, ams_voice_delete_to_trash,
+ams_dataset_audit, ams_dataset_clean,
+ams_dataset_prepare_rvc, ams_voice_delete_to_trash,
 ams_job_submit, ams_job_status, ams_job_list, ams_job_cancel, ams_job_wait,
-ams_tts_synthesize, ams_transcribe, ams_evaluate_audio, ams_docs_lookup,
+ams_tts_gsv_status, ams_tts_gsv_voices, ams_tts_gsv_synthesize, ams_tts_gsv_train, ams_tts_gsv_dataset_prepare, ams_transcribe, ams_evaluate_audio, ams_docs_lookup,
 ams_release_check.
 
 ## Safety

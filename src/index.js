@@ -9,9 +9,31 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import http from 'node:http'
 import { createHash } from 'node:crypto'
-// Minimal DSH tool definition helper: every tool declares a permissive output schema and renders JSON text.
+// Minimal DSH tool definition helper: compile the author-facing parameter map into
+// the raw JSON Schema object the model-facing tool registry expects.
 const renderValue = (_args, value) => [{ type:'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }]
-const defineTool = (definition) => ({ ...definition, output: definition.output || { schema:{ type:'object', additionalProperties:true }, render:renderValue } })
+const JSON_ANY = { oneOf: [{ type:'object' }, { type:'array' }, { type:'string' }, { type:'number' }, { type:'boolean' }] }
+function compileValueSpec(v) {
+  if (!v || typeof v !== 'object') return {}
+  if (v.type === 'json') return JSON_ANY
+  if (v.type === 'oneOf' && Array.isArray(v.branches)) return { oneOf: v.branches.map(compileValueSpec) }
+  const spec = { type: v.type || 'string' }
+  if (v.enum) spec.enum = v.enum
+  if (v.description) spec.description = v.description
+  if (v.default !== undefined) spec.default = v.default
+  if (v.items) spec.items = compileValueSpec(v.items)
+  if (v.type === 'object' && v.properties) { spec.properties = {}; spec.required = [] ; for (const [k, pv] of Object.entries(v.properties)) { spec.properties[k]=compileValueSpec(pv); if (pv && pv.required===true) spec.required.push(k) } ; if (!spec.required.length) delete spec.required }
+  return spec
+}
+function compileParameters(params) {
+  const properties = {}; const required = []
+  for (const [key, value] of Object.entries(params || {})) {
+    properties[key] = compileValueSpec(value)
+    if (value && value.required === true) required.push(key)
+  }
+  return { type: 'object', properties, ...(required.length ? { required } : {}) }
+}
+const defineTool = (definition) => ({ ...definition, parameters: compileParameters(definition.parameters), output: definition.output || { schema:{ type:'object', additionalProperties:true }, render:renderValue } })
 // Resolve AMS_HOME from env / Kernel cwd / DSH_HOME instead of a hardcoded install path.
 // The Kernel is launched with cwd = <AMS_HOME>/kernel, and the launcher strips AMS_* env vars,
 // so cwd is the most reliable signal for installed builds.
@@ -38,9 +60,9 @@ function auditLog(message) {
 auditLog('module-loaded')
 
 const execFileAsync = promisify(execFile)
-const VERSION = '0.2.2'
-const WRITE_TYPES = new Set(['train.rvc','train.tts','tts.dataset.prepare','dataset.prepare','convert.rvc','convert.msvc','separate.pymss','mix.master','tts.synthesize'])
-const ALL_TYPES = new Set(['ping','mock.long','convert.msvc','convert.rvc','separate.pymss','train.rvc','tts.synthesize','tts.dataset.prepare','train.tts','dataset.prepare','evaluate.audio','mix.master'])
+const VERSION = '0.3.1'
+const WRITE_TYPES = new Set(['train.rvc','dataset.prepare','convert.rvc','convert.msvc','separate.pymss','mix.master','tts.synthesize.gsv','tts.train.gsv','tts.dataset.prepare.gsv'])
+const ALL_TYPES = new Set(['ping','mock.long','convert.msvc','convert.rvc','separate.pymss','train.rvc','tts.synthesize.gsv','tts.train.gsv','tts.dataset.prepare.gsv','dataset.prepare','evaluate.audio','mix.master'])
 
 function dataPath(...parts) { const root = amsHome(); const full = resolve(root, ...parts); if (full !== root && !full.startsWith(root + sep)) throw new Error('PATH_DENIED'); return full }
 function readJson(file) { return JSON.parse(readFileSync(file,'utf8')) }
@@ -82,15 +104,8 @@ function wavMetrics(file) {
 }
 function metadataMap(dir) {
   const m={}; const f=join(dir,'metadata.csv'); if(!existsSync(f)) return m
-  for(const line of readFileSync(f,'utf8').split(/\r?\n/)){ if(!line.trim()) continue; const p=line.split('|'); if(p.length>1) m[p[0]]=p.slice(1).join('|') }
+  for(const line of readFileSync(f,'utf8').split(/\r?\n/)){ if(!line.trim()) continue; let p; if(line.includes('|')) p=line.split('|'); else p=line.split(','); if(p.length>1){ const key=p[0].trim().replace(/\.wav$/i,''); m[key]=p.slice(1).join('|').trim() } }
   return m
-}
-function cleanTtsText(text) {
-  let s=String(text||'').replace(/\[[^\]]*\]/g,'').replace(/<[^>]*>/g,'').replace(/[\u0000-\u001f\u007f]/g,' ')
-  s=s.replace(/\s+/g,' ').trim()
-  s=s.replace(/[，,]\s*/g,'，').replace(/[。.!！?？]\s*/g,m=>m.trim())
-  if(s && !/[。！？!?.,，；;：:]$/.test(s)) s+='。'
-  return s
 }
 
 function registerSkill(ctx, log) {
@@ -98,7 +113,7 @@ function registerSkill(ctx, log) {
     const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'skills', 'ams-music-processing')
     const locator = join(root, 'SKILL.md')
     if (!existsSync(locator) || !ctx.skills || typeof ctx.skills.registerProvider !== 'function') return
-    const candidate = { name:'ams-music-processing', description:'Operate AMS Studio music pipelines safely through the independent ams_* Agent tools.', invocation:{modelInvocable:true,userInvocable:true}, provider:'ams-agent-music', source:'bundled', resourceBase:{kind:'directory',path:root}, locator }
+    const candidate = { name:'ams-music-processing', rank:600, description:'Operate AMS Studio music pipelines safely through the independent ams_* Agent tools.', invocation:{modelInvocable:true,userInvocable:true}, provider:'ams-agent-music', source:'bundled', resourceBase:{kind:'directory',path:root}, locator }
     const provider = { name:'ams-agent-music', list:()=>Promise.resolve([candidate]), async get(){ return { ...candidate, content: readFileSync(locator,'utf8') } } }
     ctx.skills.registerProvider(() => provider)
     auditLog('skill-provider-registered')
@@ -127,7 +142,7 @@ export function apply(ctx) {
     parameters:{ intent:{type:'string',required:true,enum:['read','execute','publish']}, acknowledge:{type:'boolean',description:'User acknowledged the mode and safety rules.'} },
     async execute(args) {
       const intent=String(args.intent||'read'); if(!['read','execute','publish'].includes(intent)) throw new Error('INVALID_INTENT')
-      return toolResult({ ok:true, mode:'ams-music-processing', version:VERSION, intent, data_root:amsHome(), capabilities:['status','inventory','dataset.inspect','dataset.audit','job.submit','job.status','job.cancel','tts.synthesize','transcribe','docs.lookup'], policy:{read_only_default:true,confirm_required_for_writes:true,no_shell:true,path_root:amsHome()}, acknowledged: args.acknowledge===true })
+      return toolResult({ ok:true, mode:'ams-music-processing', version:VERSION, intent, data_root:amsHome(), capabilities:['status','inventory','dataset.inspect','dataset.audit','job.submit','job.status','job.cancel','tts.synthesize.gsv','transcribe','docs.lookup'], policy:{read_only_default:true,confirm_required_for_writes:true,no_shell:true,path_root:amsHome()}, acknowledged: args.acknowledge===true })
     }
   })
   const statusTool = defineTool({
@@ -136,9 +151,9 @@ export function apply(ctx) {
     async execute() { let health=null, err=null; try { health=await gateway('/health') } catch(e) { err=String(e&&e.message?e.message:e) } return toolResult({ ok:!err, data_root:amsHome(), plugin_version:VERSION, gateway:health, error:err }) }
   })
   const inventoryTool = defineTool({
-    name:'ams_inventory', description:'List AMS voices, TTS models, datasets and projects. Read-only.',
-    parameters:{ kind:{type:'string',enum:['voices','tts_models','datasets','projects','all']} },
-    async execute(args) { const root=amsHome(); const kind=String(args.kind||'all'); const out={}; const add=(key,rel)=>{out[key]=listDir(join(root,rel)).map(x=>({name:x.name,path:x.path}))}; if(kind==='all'||kind==='voices') add('voices','voices'); if(kind==='all'||kind==='tts_models') add('tts_models','tts_voices'); if(kind==='all'||kind==='datasets') add('datasets','datasets'); if(kind==='all'||kind==='projects') add('projects','projects'); return toolResult({ok:true,data_root:root,items:out}) }
+    name:'ams_inventory', description:'List AMS voices, GPT-SoVITS voices, datasets and projects. Read-only.',
+    parameters:{ kind:{type:'string',enum:['voices','tts_gsv_voices','datasets','projects','all']} },
+    async execute(args) { const root=amsHome(); const kind=String(args.kind||'all'); const out={}; const add=(key,rel)=>{out[key]=listDir(join(root,rel)).map(x=>({name:x.name,path:x.path}))}; if(kind==='all'||kind==='voices') add('voices','voices'); if(kind==='all'||kind==='tts_gsv_voices') add('tts_gsv_voices','tts-gsv/voices'); if(kind==='all'||kind==='datasets') add('datasets','datasets'); if(kind==='all'||kind==='projects') add('projects','projects'); return toolResult({ok:true,data_root:root,items:out}) }
   })
   const datasetInspectTool = defineTool({
     name:'ams_dataset_inspect', description:'Inspect an RVC/TTS dataset directory under AMS data: wav count, metadata count and total duration. Read-only.',
@@ -182,25 +197,10 @@ export function apply(ctx) {
       return toolResult({ok:true,moved,trash_dir:dest,note:'Original dataset files were moved, not deleted.'})
     }
   })
-  const ttsTextCleanTool = defineTool({
-    name:'ams_tts_text_clean', description:'Dry-run or write metadata.cleaned.csv with normalized TTS text. Never overwrites metadata.csv; write requires confirm=true.',
-    parameters:{ path:{type:'string',required:true}, confirm:{type:'boolean'} },
-    async execute(args) {
-      const dir=safeRelPath(args.path); const rows=[]; const file=join(dir,'metadata.csv'); if(!existsSync(file)) throw new Error('METADATA_NOT_FOUND');
-      for(const line of readFileSync(file,'utf8').split(/\r?\n/)){ if(!line.trim()) continue; const p=line.split('|'); if(p.length<2) continue; const clean=cleanTtsText(p.slice(1).join('|')); rows.push({id:p[0],before:p.slice(1).join('|'),after:clean,changed:clean!==p.slice(1).join('|')}) }
-      const changed=rows.filter(r=>r.changed); let out=null; if(args.confirm===true){ out=join(dir,'metadata.cleaned.csv'); writeFileSync(out,rows.map(r=>r.id+'|'+r.after).join('\n')+'\n','utf8') }
-      return toolResult({ok:true,path:dir,total:rows.length,changed:changed.length,sample:changed.slice(0,20),written:out,note:out?'metadata.csv untouched; cleaned copy written.':'Dry-run only. Set confirm=true to write metadata.cleaned.csv.'})
-    }
-  })
   const datasetPrepareRvcTool = defineTool({
     name:'ams_dataset_prepare_rvc', description:'Prepare an RVC dataset via dataset.prepare. Requires confirm=true.',
     parameters:{ source_path:{type:'string',required:true}, dataset_name:{type:'string',required:true}, target_sr:{type:'integer'}, min_sec:{type:'number'}, max_sec:{type:'number'}, confirm:{type:'boolean'} },
     async execute(args){ requireConfirm(args); const job=await gateway('/jobs','POST',{type:'dataset.prepare',params:{source_path:String(args.source_path),dataset_name:String(args.dataset_name),target_sr:args.target_sr||48000,min_sec:args.min_sec||3,max_sec:args.max_sec||10},project_id:null}); return toolResult({ok:true,job}) }
-  })
-  const datasetPrepareTtsTool = defineTool({
-    name:'ams_dataset_prepare_tts', description:'Prepare a TTS dataset via tts.dataset.prepare. Requires confirm=true.',
-    parameters:{ source_path:{type:'string',required:true}, dataset_name:{type:'string',required:true}, confirm:{type:'boolean'} },
-    async execute(args){ requireConfirm(args); const job=await gateway('/jobs','POST',{type:'tts.dataset.prepare',params:{source_path:String(args.source_path),dataset_name:String(args.dataset_name)},project_id:null}); return toolResult({ok:true,job}) }
   })
   const jobWaitTool = defineTool({
     name:'ams_job_wait', description:'Wait for a Gateway job to reach a terminal state, polling up to timeout_sec.',
@@ -209,9 +209,9 @@ export function apply(ctx) {
   })
 
   const voiceTrashTool = defineTool({
-    name:'ams_voice_delete_to_trash', description:'Move a voice/model directory to data/trash. Never deletes originals. Requires confirm=true.',
-    parameters:{ name:{type:'string',required:true}, kind:{type:'string',enum:['rvc','tts']}, confirm:{type:'boolean'} },
-    async execute(args){ requireConfirm(args); const kind=String(args.kind||'tts'); const rel=kind==='rvc'?'voices':'tts_voices'; const src=dataPath(rel,String(args.name)); if(!existsSync(src)) throw new Error('VOICE_NOT_FOUND'); const dest=join(amsHome(),'trash',rel,String(args.name)+'-'+Date.now()); mkdirSync(dirname(dest),{recursive:true}); renameSync(src,dest); return toolResult({ok:true,moved_from:src,moved_to:dest}) }
+    name:'ams_voice_delete_to_trash', description:'Move an RVC voice directory to data/trash. Never deletes originals. Requires confirm=true.',
+    parameters:{ name:{type:'string',required:true}, kind:{type:'string',enum:['rvc']}, confirm:{type:'boolean'} },
+    async execute(args){ requireConfirm(args); const kind=String(args.kind||'rvc'); const rel='voices'; const src=dataPath(rel,String(args.name)); if(!existsSync(src)) throw new Error('VOICE_NOT_FOUND'); const dest=join(amsHome(),'trash',rel,String(args.name)+'-'+Date.now()); mkdirSync(dirname(dest),{recursive:true}); renameSync(src,dest); return toolResult({ok:true,moved_from:src,moved_to:dest}) }
   })
   const jobSubmitTool = defineTool({
     name:'ams_job_submit', description:'Submit a typed AMS Gateway job. Write types require confirm=true after explicit user approval.',
@@ -221,7 +221,59 @@ export function apply(ctx) {
   const jobStatusTool = defineTool({name:'ams_job_status',description:'Read one Gateway job by id.',parameters:{job_id:{type:'string',required:true}},async execute(args){return toolResult(await gateway('/jobs/'+encodeURIComponent(String(args.job_id))))}})
   const jobListTool = defineTool({name:'ams_job_list',description:'List recent Gateway jobs.',parameters:{limit:{type:'integer'}},async execute(args){return toolResult(await gateway('/jobs?limit='+Math.min(100,Number(args.limit||20))))}})
   const jobCancelTool = defineTool({name:'ams_job_cancel',description:'Cancel a Gateway job. Requires confirm=true.',parameters:{job_id:{type:'string',required:true},confirm:{type:'boolean'}},async execute(args){requireConfirm(args);return toolResult(await gateway('/jobs/'+encodeURIComponent(String(args.job_id))+'/cancel','POST',{}))}})
-  const ttsSynthTool = defineTool({name:'ams_tts_synthesize',description:'Synthesize text with a TTS model. Requires confirm=true.',parameters:{text:{type:'string',required:true},model:{type:'string'},confirm:{type:'boolean'}},async execute(args){requireConfirm(args);const text=clampText(args.text,20000);const job=await gateway('/jobs','POST',{type:'tts.synthesize',params:{text,...(args.model?{model:String(args.model)}:{})},project_id:null});return toolResult({ok:true,job})}})
+  const ttsGsvStatusTool = defineTool({
+    name:'ams_tts_gsv_status', description:'Read GPT-SoVITS runtime/voices status (runtime.tts-gsv-core). Read-only.',
+    parameters:{},
+    async execute(){ return toolResult(await gateway('/tts/gsv/status')) }
+  })
+  const ttsGsvVoicesTool = defineTool({
+    name:'ams_tts_gsv_voices', description:'List trained GPT-SoVITS voices under data/tts-gsv/voices. Read-only.',
+    parameters:{},
+    async execute(){ return toolResult(await gateway('/tts/gsv/voices')) }
+  })
+  const ttsGsvSynthTool = defineTool({
+    name:'ams_tts_gsv_synthesize', description:'Synthesize text with a trained GPT-SoVITS voice (V5turbo default; V2ProPlus fallback). Requires confirm=true.',
+    parameters:{ text:{type:'string',required:true}, voice_id:{type:'string',required:true}, speed:{type:'number'}, seed:{type:'integer'}, confirm:{type:'boolean'} },
+    async execute(args){
+      requireConfirm(args)
+      const text=clampText(args.text,20000)
+      if(!text) throw new Error('TEXT_REQUIRED')
+      const voiceId=String(args.voice_id||'').trim()
+      if(!/^[A-Za-z0-9_\-\u4e00-\u9fff]{1,64}$/.test(voiceId)) throw new Error('VOICE_ID_INVALID')
+      const speed=Math.max(0.5,Math.min(2.0,Number(args.speed||1.0)))
+      const seed=Number.isFinite(Number(args.seed))?Math.trunc(Number(args.seed)):42
+      const job=await gateway('/jobs','POST',{type:'tts.synthesize.gsv',params:{text,voice_id:voiceId,speed,seed},project_id:null})
+      return toolResult({ok:true,job})
+    }
+  })
+  const ttsGsvTrainTool = defineTool({
+    name:'ams_tts_gsv_train', description:'Train a GPT-SoVITS V5turbo LoRA voice from a dataset (wav/ + metadata.csv). Requires confirm=true; takes tens of minutes.',
+    parameters:{ dataset_dir:{type:'string',required:true}, voice_id:{type:'string',required:true}, name:{type:'string'}, epochs_sovits:{type:'integer'}, epochs_gpt:{type:'integer'}, ref_audio:{type:'string'}, ref_text:{type:'string'}, confirm:{type:'boolean'} },
+    async execute(args){
+      requireConfirm(args)
+      const dataset=String(args.dataset_dir||'').trim()
+      const voiceId=String(args.voice_id||'').trim()
+      if(!dataset) throw new Error('DATASET_REQUIRED')
+      if(!/^[A-Za-z0-9_\-\u4e00-\u9fff]{1,64}$/.test(voiceId)) throw new Error('VOICE_ID_INVALID')
+      const params={dataset_dir:dataset,voice_id:voiceId,version:'v5turbo',epochs_sovits:Math.max(1,Math.min(16,Number(args.epochs_sovits||8))),epochs_gpt:Math.max(1,Math.min(20,Number(args.epochs_gpt||10)))}
+      if(args.name) params.name=String(args.name)
+      if(args.ref_audio) params.ref_audio=String(args.ref_audio)
+      if(args.ref_text) params.ref_text=String(args.ref_text)
+      const job=await gateway('/jobs','POST',{type:'tts.train.gsv',params,project_id:null})
+      return toolResult({ok:true,job})
+    }
+  })
+  const ttsGsvDatasetTool = defineTool({
+    name:'ams_tts_gsv_dataset_prepare', description:'Import an existing GPT-SoVITS dataset (wav/ + metadata.csv) into data/tts-gsv/datasets. Requires confirm=true.',
+    parameters:{ source_path:{type:'string',required:true}, dataset_name:{type:'string',required:true}, confirm:{type:'boolean'} },
+    async execute(args){
+      requireConfirm(args)
+      const source=String(args.source_path||'').trim(); const name=String(args.dataset_name||'').trim()
+      if(!source||!name) throw new Error('SOURCE_AND_NAME_REQUIRED')
+      const job=await gateway('/jobs','POST',{type:'tts.dataset.prepare.gsv',params:{source_path:source,dataset_name:name},project_id:null})
+      return toolResult({ok:true,job})
+    }
+  })
   const transcribeTool = defineTool({
     name:'ams_transcribe', description:'Local speech-to-text for audio under AMS data. Returns transcript and segments; does not upload audio. ASR deps are auto-detected from the installed runtime layout; override with AMS_ASR_PYTHON / AMS_ASR_LIB / AMS_ASR_MODEL / AMS_FFMPEG.',
     parameters:{ input_path:{type:'string',required:true}, language:{type:'string'} },
@@ -230,28 +282,20 @@ export function apply(ctx) {
       const root=amsHome()
       const script=join(dirname(fileURLToPath(import.meta.url)),'..','asr.py'); if(!existsSync(script)) throw new Error('ASR_SCRIPT_NOT_FOUND: '+script)
       const pick=(cands)=>cands.find(p=>p && existsSync(p)) || ''
-      // 1) python: env override, then flat layout, then real v1.0.x nested layout, then one-level scan
-      const pyC=[]
-      if(process.env.AMS_ASR_PYTHON) pyC.push(process.env.AMS_ASR_PYTHON)
-      pyC.push(join(root,'runtime','tts-train','0.1.0','python','python.exe'))
-      pyC.push(join(root,'runtime','tts-train','0.1.0','runtime.tts-train-0.1.0','python','python.exe'))
-      try { for (const d of readdirSync(join(root,'runtime','tts-train'))) { const b=join(root,'runtime','tts-train',d); pyC.push(join(b,'python','python.exe'), join(b,'runtime.tts-train-0.1.0','python','python.exe')) } } catch {}
-      const py=pick(pyC); if(!py) throw new Error('ASR_PYTHON_NOT_FOUND: checked '+pyC.slice(0,5).join(' | '))
-      // 2) vosk deps: sibling of python or nested runtime deps
-      const depsC=[]
-      if(process.env.AMS_ASR_LIB) depsC.push(process.env.AMS_ASR_LIB)
-      depsC.push(join(dirname(py),'..','deps'), join(dirname(py),'deps'), join(root,'runtime','tts-train','0.1.0','deps'), join(root,'runtime','tts-train','0.1.0','runtime.tts-train-0.1.0','deps'))
-      const lib=pick(depsC) || ''
+      // 1) python: env override, then PATH python (Vosk libs live in data/tools/asr)
+      const py=process.env.AMS_ASR_PYTHON || 'python'
+      // 2) vosk deps
+      const lib=process.env.AMS_ASR_LIB || join(root,'tools','asr','vosk-libs')
       // 3) model: env override, standard models/vosk-cn layout, then any vosk* dir under models
       const modelC=[]
       if(process.env.AMS_ASR_MODEL) modelC.push(process.env.AMS_ASR_MODEL)
       modelC.push(join(root,'models','vosk-cn','vosk-model-small-cn-0.22'))
       try { for (const d of readdirSync(join(root,'models'))) { if(/vosk/i.test(d)) { const v=join(root,'models',d); modelC.push(v); try { for (const m of readdirSync(v)) modelC.push(join(v,m)) } catch {} } } } catch {}
-      const model=pick(modelC); if(!model) throw new Error('ASR_MODEL_NOT_FOUND: checked '+modelC.slice(0,5).join(' | ')+' | 可从 F:/_trash/ams-clean-20261026_1445 的 models/vosk-cn 恢复')
+      const model=pick(modelC); if(!model) throw new Error('ASR_MODEL_NOT_FOUND: checked '+modelC.slice(0,5).join(' | '))
       // 4) ffmpeg
       const ffC=[]
       if(process.env.AMS_FFMPEG) ffC.push(process.env.AMS_FFMPEG)
-      ffC.push(join(root,'runtime','rvc','0.1.0','ffmpeg.exe'), join(root,'runtime','rvc','0.1.0','runtime','ffmpeg.exe'))
+      ffC.push(join(root,'tools','asr','ffmpeg.exe'), join(root,'runtime','rvc','0.1.0','ffmpeg.exe'), join(root,'runtime','rvc','0.1.0','runtime','ffmpeg.exe'))
       const ffmpeg=pick(ffC); if(!ffmpeg) throw new Error('ASR_FFMPEG_NOT_FOUND: checked '+ffC.join(' | '))
       const extra={ PYTHONIOENCODING:'utf-8', ...(lib?{AMS_ASR_LIB:lib, PYTHONPATH:lib+(process.env.PYTHONPATH?';'+process.env.PYTHONPATH:'')}:{}) }
       try {
@@ -272,7 +316,7 @@ export function apply(ctx) {
       return toolResult({ok:true,path:file,metrics:m,flags,asr,expected,passed:flags.length===0&&(!expected||expected.char_recall>=0.6)})
     }
   })
-  const docsTool = defineTool({name:'ams_docs_lookup',description:'Read one bundled AMS music reference. Use progressive disclosure instead of loading all docs.',parameters:{name:{type:'string',required:true,enum:['architecture','tools','safety','lessons','datasets','release']}},async execute(args){const base=join(dirname(fileURLToPath(import.meta.url)),'..','skills','ams-music-processing','references',String(args.name)+'.md'); if(!existsSync(base)) throw new Error('DOC_NOT_FOUND'); return toolResult(readFileSync(base,'utf8').slice(0,24000))}})
+  const docsTool = defineTool({name:'ams_docs_lookup',description:'Read one bundled AMS music reference. Use progressive disclosure instead of loading all docs.',output:{schema:{type:'string'},render:renderValue},parameters:{name:{type:'string',required:true,enum:['architecture','tools','safety','lessons','datasets','release','tts_gsv']}},async execute(args){const base=join(dirname(fileURLToPath(import.meta.url)),'..','skills','ams-music-processing','references',String(args.name)+'.md'); if(!existsSync(base)) throw new Error('DOC_NOT_FOUND'); return toolResult(readFileSync(base,'utf8').slice(0,24000))}})
   const releaseTool = defineTool({
     name:'ams_release_check', description:'Preflight a release directory under AMS data: feed/manifest sequence, setup hash, SHA256SUMS, required assets. Read-only.',
     parameters:{ dir:{type:'string',required:true} },
@@ -294,7 +338,7 @@ export function apply(ctx) {
     }
   })
 
-  const tools=[modeTool,statusTool,inventoryTool,datasetInspectTool,datasetAuditTool,datasetCleanTool,ttsTextCleanTool,datasetPrepareRvcTool,datasetPrepareTtsTool,voiceTrashTool,jobSubmitTool,jobStatusTool,jobListTool,jobCancelTool,jobWaitTool,ttsSynthTool,transcribeTool,evaluateAudioTool,docsTool,releaseTool]
+  const tools=[modeTool,statusTool,inventoryTool,datasetInspectTool,datasetAuditTool,datasetCleanTool,datasetPrepareRvcTool,voiceTrashTool,jobSubmitTool,jobStatusTool,jobListTool,jobCancelTool,jobWaitTool,ttsGsvStatusTool,ttsGsvVoicesTool,ttsGsvSynthTool,ttsGsvTrainTool,ttsGsvDatasetTool,transcribeTool,evaluateAudioTool,docsTool,releaseTool]
   for (const tool of tools) {
     const execute=tool.execute
     tool.execute=async (args) => { try { return await execute(args||{}) } catch (e) { return toolResult({ ok:false, error:{ code:String(e && e.code ? e.code : 'TOOL_ERROR'), message:String(e && e.message ? e.message : e), detail:e && e.detail ? e.detail : undefined } }) } }

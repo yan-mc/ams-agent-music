@@ -1,6 +1,6 @@
 # 嘉音Studio Agent 插件功能详解（@ams/agent-music）
 
-> 这是"让 AI 在聊天里直接操作整套嘉音Studio"的插件：20 个 `ams_*` 工具 + 1 个 Skill（`ams-music-processing`）+ 本地语音转写（Vosk ASR）。
+> 这是"让 AI 在聊天里直接操作整套嘉音Studio"的插件：25 个 `ams_*` 工具 + 1 个 Skill（`ams-music-processing`）+ 本地语音转写（Vosk ASR）。
 > 全部操作只落在本机 `data/` 目录内；默认只读，写操作必须显式 `confirm=true`。
 
 ## 一、它能让你在聊天里做什么
@@ -16,9 +16,7 @@
 
 ### 2. 整理与准备（写操作，需确认）
 - `ams_dataset_clean`：安全清理数据集（先出报告与逐文件清单，确认后才把文件移到 `data/trash`，绝不直接删除）。
-- `ams_tts_text_clean`：TTS 文本清洗（去括号/标签/控制字符、标点规范化），输出 `metadata.cleaned.csv`，原文件不动。
 - `ams_dataset_prepare_rvc`：把 wav/目录准备成 RVC 训练数据集（统一采样率、切 3–10 秒片段）。
-- `ams_dataset_prepare_tts`：准备 TTS 训练数据集。
 - `ams_voice_delete_to_trash`：把音色/模型目录移到回收站（可恢复，不删原件）。
 
 ### 3. 跑任务（通过 Gateway 串行 GPU 队列）
@@ -26,7 +24,7 @@
 - `ams_job_status` / `ams_job_list`：查询任务状态与列表。
 - `ams_job_wait`：等待任务完成（带超时），可连续跟进长任务。
 - `ams_job_cancel`：取消任务（需确认）。
-- `ams_tts_synthesize`：直接合成 TTS（需确认）。
+- `ams_tts_gsv_synthesize`：用 GPT-SoVITS 音色合成（需确认）。
 - `ams_evaluate_audio`：本地客观评测——时长/采样率/声道/峰值/RMS/削波/静音；可选 ASR 转写并计算与预期文本的字召回。
 - `ams_transcribe`：本地 Vosk 语音转写（音频不上传；依赖/模型自动探测，可用环境变量覆盖）。
 

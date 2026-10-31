@@ -1,6 +1,6 @@
 {
   "name": "@ams/agent-music-ui",
-  "version": "0.2.2",
+  "version": "0.3.1",
   "type": "module",
   "private": true,
   "description": "嘉音Studio Kernel rebrand client plugin for @ams/agent-music (title/logo/text rebrand, no kernel modifications).",
