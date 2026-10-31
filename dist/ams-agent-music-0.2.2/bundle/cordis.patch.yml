@@ -1,0 +1,85 @@
+# 嘉音Studio Agent 插件 bundle：Host 工具/ Skill / 内核换标 client / 音乐制作模式 preset。
+- insert:
+    - id: ams-agent-music
+      name: '@ams/agent-music'
+    - id: ams-agent-music-ui
+      name: '@ams/agent-music-ui'
+    - id: ams-agent-music-mode
+      name: '@ams/agent-music-mode'
+    - id: preset-ams-music
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: ams-music
+        name: 音乐制作
+        description: 嘉音Studio 音乐制作模式：默认加载音乐工具与 Skill，并把会话工作目录切到安装目录 data。
+        order: 2
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: >-
+                你是嘉音Studio 的音乐制作助手。优先使用 ams_* 工具完成音源炼制、歌曲换源、人声分离、TTS、数据集处理与质量审计；
+                写操作前必须获得用户明确确认（confirm=true）。默认工作目录是嘉音Studio 安装目录下的 data 目录（插件会自动切换）。
+                回答用中文，先给结论再给操作步骤与产物路径。
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-schedule
+            name: '@deepseek-ai/dsh-tool-schedule'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: present
+            name: '@deepseek-ai/dsh-tool-present'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+          - id: ams-music-mode
+            name: '@ams/agent-music-mode'

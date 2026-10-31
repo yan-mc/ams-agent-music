@@ -1,0 +1,25 @@
+{
+  "name": "@ams/agent-music-mode",
+  "version": "0.2.2",
+  "type": "module",
+  "description": "音乐制作 Agent preset helper: switch a new session to the AMS data directory (resolved dynamically, never hardcoded).",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/",
+    "README.md"
+  ],
+  "engines": {
+    "dsh": "0.2.1-rc.2"
+  },
+  "ams": {
+    "kind": "host",
+    "pluginId": "ams.agent.music.mode"
+  }
+}

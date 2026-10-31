@@ -1,6 +1,6 @@
 {
   "name": "@ams/agent-music",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "skill": "ams-music-processing",
   "tools": [
     "ams_mode_enter",
@@ -27,6 +27,9 @@
   "asr": "local Vosk (auto-detected deps)",
   "bundle": "@ams/agent-music-bundle",
   "client": "@ams/agent-music-ui",
+  "mode": "@ams/agent-music-mode",
+  "preset": "音乐制作 (ams-music)",
+  "wallpaper": "嘉音Studio wallpaper (embedded in client)",
   "rebrand": "Kernel title/logo/text -> 嘉音Studio",
-  "built_at": "2026-10-30T16:56:24.038213+00:00"
+  "built_at": "2026-10-31T07:29:23.273802+00:00"
 }

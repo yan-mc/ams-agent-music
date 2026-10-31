@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Build 嘉音Studio agent-music dist: raw package tree + npm-style tgz packages + zip."""
-import json, pathlib, shutil, tarfile, zipfile, hashlib, datetime, io
+import json, pathlib, shutil, tarfile, zipfile, hashlib, datetime
 
 root = pathlib.Path(__file__).resolve().parent
 dist = root / 'dist'
 pkg = json.loads((root / 'package.json').read_text(encoding='utf-8'))
 client_pkg = json.loads((root / 'client' / 'package.json').read_text(encoding='utf-8'))
 bundle_pkg = json.loads((root / 'bundle' / 'package.json').read_text(encoding='utf-8'))
+mode_pkg = json.loads((root / 'mode' / 'package.json').read_text(encoding='utf-8'))
 ver = pkg['version']
 stage = dist / f'ams-agent-music-{ver}'
 if dist.exists():
@@ -39,24 +40,25 @@ def copy_pkg(src_dir, dst_dir, files):
 
 copy_pkg(root / 'client', stage / 'client', ['package.json', 'lib', 'README.md'])
 copy_pkg(root / 'bundle', stage / 'bundle', ['package.json', 'cordis.patch.yml', 'README.md'])
+copy_pkg(root / 'mode', stage / 'mode', ['package.json', 'lib', 'README.md'])
 
 manifest = {
     'name': pkg['name'], 'version': ver, 'skill': 'ams-music-processing',
     'tools': pkg['ams']['tools'], 'asr': 'local Vosk (auto-detected deps)',
-    'bundle': '@ams/agent-music-bundle', 'client': '@ams/agent-music-ui',
+    'bundle': '@ams/agent-music-bundle', 'client': '@ams/agent-music-ui', 'mode': '@ams/agent-music-mode',
+    'preset': '音乐制作 (ams-music)', 'wallpaper': '嘉音Studio wallpaper (embedded in client)',
     'rebrand': 'Kernel title/logo/text -> 嘉音Studio',
     'built_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
 }
 (stage / 'MANIFEST.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
 
-# npm-style tgz packages for the launcher one-click installer
 tgz_dir = stage / 'tgz'
 tgz_dir.mkdir()
 
 def make_tgz(name, version, base, files):
     out = tgz_dir / f'{name}-{version}.tgz'
     with tarfile.open(out, 'w:gz') as tf:
-        def add(rel, arcbase):
+        def add(rel):
             src = base / rel
             if not src.exists():
                 return
@@ -70,23 +72,21 @@ def make_tgz(name, version, base, files):
                         with open(p, 'rb') as fh:
                             tf.addfile(ti, fh)
             else:
-                arc = arcbase + '/' + rel
+                arc = 'package/' + str(src.relative_to(base)).replace('\\', '/')
                 ti = tf.gettarinfo(str(src), arcname=arc)
                 ti.uid = ti.gid = 0
                 ti.uname = ti.gname = ''
                 with open(src, 'rb') as fh:
                     tf.addfile(ti, fh)
-        add('package.json', 'package')
         for name in files:
-            if name != 'package.json':
-                add(name, 'package')
+            add(name)
     return out
 
 host_files = [n for n in HOST_FILES if n != 'package.json']
 make_tgz('ams-agent-music', ver, root, ['package.json'] + host_files)
-# npm tgz name for scoped packages is ams-agent-music (without @)
 make_tgz('ams-agent-music-ui', client_pkg['version'], root / 'client', ['package.json', 'lib', 'README.md'])
 make_tgz('ams-agent-music-bundle', bundle_pkg['version'], root / 'bundle', ['package.json', 'cordis.patch.yml', 'README.md'])
+make_tgz('ams-agent-music-mode', mode_pkg['version'], root / 'mode', ['package.json', 'lib', 'README.md'])
 
 zip_path = dist / f"ams-agent-music-{ver}.zip"
 with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2
+
+- new: 壁纸功能 —— @ams/agent-music-ui 在 Kernel 页面注入嘉音Studio壁纸（运行时 CSS，背景图内联，无外部文件）。
+- new: 音乐制作模式 preset（id `ams-music`，与标准/创造模式并列）：
+  * 默认加载音乐工具与 `ams-music-processing` Skill；
+  * 通过 @ams/agent-music-mode 在 `agent/created` 时把会话工作目录切到嘉音Studio 安装目录 `data`（动态解析 AMS_HOME / Kernel cwd / DSH_HOME，不写死路径）。
+- bundle patch 同时插入 Host/Client/Mode 与 preset 行。
+
 ## 0.2.1
 
 - fix: audit log path is resolved from AMS_HOME / Kernel cwd / DSH_HOME instead of hardcoding `F:/AMS-Studio/data`.

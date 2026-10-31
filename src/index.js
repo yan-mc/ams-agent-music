@@ -38,7 +38,7 @@ function auditLog(message) {
 auditLog('module-loaded')
 
 const execFileAsync = promisify(execFile)
-const VERSION = '0.2.1'
+const VERSION = '0.2.2'
 const WRITE_TYPES = new Set(['train.rvc','train.tts','tts.dataset.prepare','dataset.prepare','convert.rvc','convert.msvc','separate.pymss','mix.master','tts.synthesize'])
 const ALL_TYPES = new Set(['ping','mock.long','convert.msvc','convert.rvc','separate.pymss','train.rvc','tts.synthesize','tts.dataset.prepare','train.tts','dataset.prepare','evaluate.audio','mix.master'])
 

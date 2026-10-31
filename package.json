@@ -1,6 +1,6 @@
 {
   "name": "@ams/agent-music",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
   "description": "嘉音Studio Music Agent: independent Host skills/tools for safe music processing, plus local speech-to-text and the Kernel rebrand client bundle.",

@@ -56,3 +56,11 @@
 - "把这首歌做人声分离，然后我用分离出的人声换源。"
 - "合成一段中文 TTS：'欢迎使用嘉音Studio'，用 huayan 音色。"
 - "评测一下 `artifacts/job_xxx/out.wav`，转写看看和文本对不对。"
+
+## 六、壁纸与「音乐制作」模式（0.2.2 新增）
+
+- **壁纸**：`@ams/agent-music-ui` 在 Kernel 页面注入嘉音Studio 壁纸（1280/1600 压缩版内联，运行时 CSS；不修改内核）。壁纸层在 UI 下方并带半透明遮罩，保证文字可读。
+- **音乐制作模式**：新建任务时在 Agent 预设里选择「音乐制作」。该 preset：
+  * 使用音乐制作 Persona，优先 `ams_*` 工具与 `ams-music-processing` Skill；
+  * 打开时自动把会话工作目录切到嘉音Studio 安装目录的 `data`（`@ams/agent-music-mode` 解析 `AMS_HOME` → Kernel cwd 的父目录 → `DSH_HOME`，不写死盘符）；
+  * 与「标准模式」「创造模式」并列，可随时切换。

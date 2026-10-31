@@ -13,6 +13,7 @@ window.__ModuleLoader__.load({
 
     const BRAND = '嘉音Studio'
     const LOGO = '__JY_LOGO_DATA_URI__'
+    const WALLPAPER = '__JY_WALLPAPER_DATA_URI__'
     const MARK_VIEWBOX = '0 0 23.16 17.04'
     const EXACT_TEXTS = ['探索未至之境', 'DeepSeek', 'deepseek', 'HARNESS', 'Harness', '深度求索']
     const TEXT_RE = /(探索未至之境|DeepSeek|deepseek|HARNESS|Harness|深度求索)/g
@@ -82,8 +83,32 @@ window.__ModuleLoader__.load({
       }
     }
 
+
+    function installWallpaper() {
+      try {
+        let style = document.getElementById('jy-wallpaper-style')
+        if (!style) {
+          style = document.createElement('style')
+          style.id = 'jy-wallpaper-style'
+          ;(document.head || document.documentElement).appendChild(style)
+        }
+        const css = [
+          'html, body { background-color: transparent !important; background-image: none !important; }',
+          'body::before { content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;',
+          '  background-image: url("' + WALLPAPER + '"); background-size: cover; background-position: center; background-repeat: no-repeat; }',
+          'body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;',
+          '  background: linear-gradient(180deg, rgba(6,8,12,0.42) 0%, rgba(6,8,12,0.66) 100%); }',
+          '[class*="_2jj0tW_frame"], [class*="NpfQ0a_root"], [class*="_emptyTabHost"] { background-color: rgba(8,10,14,0.42) !important; }',
+          '[class*="_2jj0tW_sidebarCol"], [class*="_8aqHxG_root"] { background-color: rgba(12,14,19,0.70) !important; }',
+          '[class*="kdKC2a_root"] { background-color: transparent !important; }'
+        ].join('\n')
+        if (style.textContent !== css) style.textContent = css
+      } catch (e) {}
+    }
+
     function applyBrand() {
       try {
+        installWallpaper()
         replaceTitleAndIcon()
         replaceMarks()
         replaceBrandName()
