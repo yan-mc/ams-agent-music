@@ -1,65 +1,53 @@
-# @ams/agent-music
+![嘉音Studio cover](assets/cover.png)
 
-嘉音Studio Music Agent: independent Host plugin (20 tools + Skill) + Kernel rebrand client + local ASR.
+# AMS Agent Music
 
-This package is intentionally not part of @ams/music-bundle.
+> 22 个本地工具 + Skill · 一句话完成音乐处理
 
-## Components
+![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows&logoColor=white)
+![Local First](https://img.shields.io/badge/local--first-data%20stays%20local-2ea44f)
+![Version](https://img.shields.io/badge/version-v2.0.1-eb3c40)
 
-- Host tools: 20 ams_* tools.
-- Skill: skills/ams-music-processing/SKILL.md + references.
-- Local ASR: asr.py using Vosk; no network.
-- Safety: read-only default; confirm=true for writes; data root guard; no shell.
+## 简介
 
-## Install
+嘉音Studio 的音乐 Agent 插件。它在 Kernel 内加载 **22 个 `ams_*` 工具 + `ams-music-processing` Skill**，
+让 AI 能安全地巡检/审计数据集、提交 GPU 任务、训练 RVC/GPT-SoVITS 音色、合成/试听、评测、发布前自检。
 
-Use the sibling bundle @ams/agent-music-bundle (also inserts @ams/agent-music-ui for the 嘉音Studio Kernel rebrand).
+默认只读；写操作要求 `confirm=true`，删除只进 `data/trash`，没有 shell。
 
-1. Copy @ams/agent-music and @ams/agent-music-bundle into the profile node_modules.
-2. Add both to profile package.json dependencies.
-3. Add @ams/agent-music-bundle to dsh.profile.bundles.
-4. Restart AMS Studio/Kernel.
-5. Verify data/logs/agent-music-load.log:
-   module-loaded
-   skill-provider-registered
-   tools-registered count=20
-   skill-list ams-music-processing
-   selftest-status {"ok":true,...}
+## 核心能力
 
-Do not add the plugin directly to cordis.patch.yml; the bundle inserts it.
+- 数据集审计（时长/静音/削波/重复/缺文本/语气词）与精确文件清理。
+- RVC 炼制/换源、pymss 分离、混音、评测、本地 ASR。
+- GPT-SoVITS：`ams_tts_gsv_status/voices/synthesize/train/dataset_prepare`。
+- 一键“先报告、再执行”；Skill 说明路由、工具契约、安全边界。
 
-## ASR dependencies
+## 本仓库
 
-- Python: data/runtime/tts-train/0.1.0/python/python.exe
-- Vosk package: data/runtime/tts-train/0.1.0/deps
-- Model: data/models/vosk-cn/vosk-model-small-cn-0.22
-- ffmpeg: data/runtime/rvc/0.1.0/ffmpeg.exe
+```text
+src/index.js        Host 工具与 Skill 注册
+skills/            ams-music-processing Skill
+client/            Kernel 换标/壁纸 client
+mode/              “音乐制作”模式
+bundle/            cordis.patch.yml
+asr.py             本地 Vosk ASR 桥
+```
 
-Override with AMS_ASR_PYTHON, AMS_ASR_LIB, AMS_ASR_MODEL, AMS_FFMPEG.
+## 快速开始
 
-## Tools
+安装：启动器“安装插件到内核（音乐 + Agent）”，或把 0.3.1 tgz 安装到 Kernel profile。
+使用：新建会话 → 模式选“音乐制作” → 直接描述需求，例如：
+> 先列出音源、TTS 音色、数据集和工程，再对数据集做一次只读审计报告。
 
-ams_mode_enter, ams_status, ams_inventory, ams_dataset_inspect,
-ams_dataset_audit, ams_dataset_clean,
-ams_dataset_prepare_rvc, ams_voice_delete_to_trash,
-ams_job_submit, ams_job_status, ams_job_list, ams_job_cancel, ams_job_wait,
-ams_tts_gsv_status, ams_tts_gsv_voices, ams_tts_gsv_synthesize, ams_tts_gsv_train, ams_tts_gsv_dataset_prepare, ams_transcribe, ams_evaluate_audio, ams_docs_lookup,
-ams_release_check.
+## 相关链接
 
-## Safety
+- 总仓库：[yan-mc/AMS-Studio](https://github.com/yan-mc/AMS-Studio)
+- 最新发布：[yan-mc/ams-release releases](https://github.com/yan-mc/ams-release/releases)
+- 当前版本：**嘉音Studio v2.0.1**（feed 2058）
+- 文档：[ams-docs](https://github.com/yan-mc/ams-docs)
 
-- Call ams_mode_enter first.
-- Read-only default.
-- confirm=true only after explicit user approval.
-- No shell, no C: writes, no deletion of originals.
-- ASR is local; audio is not uploaded.
+## 说明
 
-## Known limitations
-
-- TTS training quality is frozen per project decision.
-- ASR accuracy depends on Vosk small model; it is for routing/verification, not studio transcription.
-- H2/H3 release assets are outside this plugin.
-
-## Package
-
-Run python package.py. Output: dist/ams-agent-music-0.2.0.zip + SHA256SUMS.txt.
+- 所有音乐数据默认留在安装目录 `data/`；Gateway 只监听 `127.0.0.1`。
+- 本项目为本地优先工具，不提供云端上传；使用第三方模型/音频时请遵守各自许可。
+- License: 项目自有代码按仓库声明；Vosk/DSH 等第三方依赖遵循各自许可证。
